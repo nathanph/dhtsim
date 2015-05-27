@@ -5,11 +5,23 @@ extends layout
 
 block content
     h1 Become a Client
+    #update.
+        Test!
 
     script(src="http://developer.reappt.io/clients/js/diffusion.js")
     script.
-        if(usingJade) {
-            console.log("blah");
-        } else {
-            console.log("rawr");
+        function subscribeToTopic(session) {
+            session.subscribe('foo/counter').on('update', function(data) {
+                document.getElementById('update').innerHTML = data;
+            });
         }
+
+        diffusion.connect({
+            host: 'disloyalAristotle.eu.reappt.io',
+            principal: '',
+            credentials: '',
+            port: '443'
+        }).then(subscribeToTopic);
+
+
+
