@@ -7,6 +7,7 @@ var bodyParser = require('body-parser');
 
 var routes = require('./routes/index');
 var users = require('./routes/users');
+var client = require ('./routes/client');
 var cfenv = require('cfenv');
 
 var app = express();
@@ -25,6 +26,10 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/', routes);
 app.use('/users', users);
+app.use('/client', client);
+// app.use('/:page', function(req, res) {
+//   res.sendfile(path.join(__dirname, 'public', 'pages', path.basename(req.params.page) + '.html'));
+// });
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
