@@ -6,3 +6,13 @@ body {
 a {
   color: #00B7FF;
 }
+
+.node {
+  font: 11px "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+.link {
+  stroke: steelblue;
+  stroke-opacity: .4;
+  fill: none;
+}

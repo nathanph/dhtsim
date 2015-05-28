@@ -4,24 +4,32 @@
 extends layout
 
 block content
-    h1 Become a Client
-    #update.
-        Test!
-
+    h1 Distributed Hash Table Demo
+    #session-id
+        p
+        strong Session ID:
+    #client-hash
+        p
+        strong Client Hash:
+    hr
+    #announce
+        p
+        strong New Peer Announcement:
+    #peers
+        p
+        strong Peers:
+    #bootstrap
+        p
+        strong Bootstrap:
+    #put
+        p
+        strong Put Request:
+    #lookup
+        p
+        strong Lookup Request:
+    script(src="http://code.jquery.com/jquery-2.1.4.min.js")
     script(src="http://developer.reappt.io/clients/js/diffusion.js")
-    script.
-        function subscribeToTopic(session) {
-            session.subscribe('foo/counter').on('update', function(data) {
-                document.getElementById('update').innerHTML = data;
-            });
-        }
-
-        diffusion.connect({
-            host: 'disloyalAristotle.eu.reappt.io',
-            principal: '',
-            credentials: '',
-            port: '443'
-        }).then(subscribeToTopic);
-
-
-
+    script(src="http://d3js.org/d3.v3.min.js")
+    script(src="/javascripts/sha1.js")
+    script(src="/javascripts/client.js")
+    script(src="/javascripts/edge-bundling.js")
