@@ -2,7 +2,24 @@
  * Created by nate on 5/28/15.
  */
 
+/**
+ * Client implementation.
+ *
+ * @namespace
+ */
+var Client = {
+    session : null,
+    sessionHash : null,
+    peers : [],
+    files : []
+};
+
 $( document ).ready(function() {
+
+    // The session generated after connecting.
+
+    // The session hash.
+
     // Initialize an array of peers in the network.
     var peers = [
         {
@@ -65,6 +82,7 @@ $( document ).ready(function() {
         // Listen for announcements from clients (a new peer).
         session.subscribe('client/' + sessionHash + '/announce').on('update', function (data) {
             $('#announce').append('<br>' + data);
+            addPeer(data);
         });
 
         // Listen for put requests (a peer wants you to track a file).
@@ -79,21 +97,58 @@ $( document ).ready(function() {
     }
 
     /**
+     * Determines if a peer should be added to the peer list and adds it if it should.
+     *
+     * @param peerHash
+     */
+    function addPeer(topic) {
+
+    }
+
+//     function addPeer(peerHash) {
+//         // TODO:: Add DHT bin logic.
+//         var shouldAdd = true;
+//         if(shouldAdd){
+//             Client.peers.forEach( function(peer, index) {
+//                 if(peer.hash !== peerHash) {
+//                     Client.session.subscribe('client/' + peerHash);
+//                     Client.peers.push({"hash" : peerHash});
+//                     console.log("Added new peer: " + peerHash);
+//                     // TODO:: Re-render here!
+//                 }
+//             });
+//         } else {
+//             Client.session.remove();
+//         }
+//     }
+
+    /**
+     * Removes a peer from the DHT data structure.
+     *
+     * @param peerHash
+     */
+    function removePeer(peerHash) {
+        Client.peers.forEach( function(peer, index) {
+            if (peer.hash === hash) {
+                Client.peers.splice(index, 1);
+            }
+        });
+    }
+
+    /**
      * Initializes topics for the client session.
      */
     function initTopics(session) {
-        // Session hash.
-        var sessionHash = Sha1.hash(session.sessionID);
-
         // Add topics for this client.
-        session.topics.add('client/' + sessionHash + '/announce');
-        session.topics.add('client/' + sessionHash + '/peers');
-        session.topics.add('client/' + sessionHash + '/files');
-        session.topics.add('client/' + sessionHash + '/lookup');
-        session.topics.add('client/' + sessionHash + '/put');
+        session.topics.add('client/' + Client.hash + '/id', session.sessionID);
+        session.topics.add('client/' + Client.hash + '/announce');
+        session.topics.add('client/' + Client.hash + '/peers');
+        session.topics.add('client/' + Client.hash + '/files');
+        session.topics.add('client/' + Client.hash + '/lookup');
+        session.topics.add('client/' + Client.hash + '/put');
 
         // Remove all topics for client when session disconnects.
-        session.topics.removeWithSession('client/' + sessionHash + '/');
+        session.topics.removeWithSession('client/' + Client.hash + '/');
     }
 
     /**
@@ -101,16 +156,39 @@ $( document ).ready(function() {
      */
     function bootstrap(session) {
         // TODO:: Bootstrap with server to discover peers.
+        // Let's cheat for now and use a wildcard within the topic.
+        // session.topics.remove('?client//'); // Remove this later, it's just for cleaning up topics.
+
+        var subscription = session.subscribe('?client/.*');
+
+        // Add the client to our peer list.
+        subscription.on('subscribe', function(data, topic) {
+            hash = topic.substring(7);
+            addPeer(hash);
+        });
+
+        // Delete the client from the peer-list if it disconnects.
+        subscription.on('unsubscribe', function(data, topic) {
+            hash = topic.substring(7);
+            Client.peers.forEach( function(peer, index) {
+                if(peer.hash === hash) {
+                    Client.peers.splice(index, 1);
+                }
+            });
+            console.log(Client.peers);
+            // TODO:: Re-render here!
+        });
     }
 
     /**
      * Initialize everything after we've connected to the Reappt server.
      */
     function initConnection(session) {
-        var sessionHash = Sha1.hash(session.sessionID);
+        Client.session = session;
+        Client.hash = Sha1.hash(session.sessionID);
 
         $('#session-id').append(" " + session.sessionID);
-        $('#client-hash').append(" " + sessionHash);
+        $('#client-hash').append(" " + Client.hash);
 
 
         // Init all the things.
