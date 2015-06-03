@@ -14,23 +14,39 @@ block content
                 This demo illustrates the operations a Distributed Hash Table performs.
                 This demo does not use any peer-to-peer communication, instead it uses
                 the Reappt service Bluemix offers.
+        .page-header
+            h1 Client Information
         #session-id
             strong Session ID:
         #client-hash
             strong Client Hash:
-        hr
-        #bootstrap
-            strong Bootstrap:
-            br
-            em Waiting for 3 peers to join the network...
-        #announce
-            strong New Peer Announcement:
-        #peers
-            strong Peers:
-        #put
-            strong Put Request:
-        #lookup
-            strong Lookup Request:
+        .col-md-12
+            table#peer-list.table.table-striped
+                thead
+                    tr
+                        th #
+                        th Peer's Hash
+                        th Distance
+                tbody
+        button#discover-nodes.btn.btn-default.disabled Discover Peers
+        .page-header
+            h1 Network Activity
+        .row
+            .col-sm-4
+                #bootstrap.panel.panel-default
+                    .panel-heading
+                        h3.panel-title Bootstrap
+                    .panel-body
+                        p
+                            em Waiting for bootstrap server to provide 3 peers...
+                #announce
+                    strong New Peer Announcement:
+                #peers
+                    strong Peers:
+                #put
+                    strong Put Request:
+                #lookup
+                    strong Lookup Request:
     script(src="http://developer.reappt.io/clients/js/diffusion.js")
     script(src="http://d3js.org/d3.v3.min.js")
     script(src="/javascripts/sha1.js")

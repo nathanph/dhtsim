@@ -30,36 +30,68 @@ var Client = {
 };
 $( document ).ready(function() {
     // Initialize an array of files that you're tracking.
-    var files = [
-        {
-            "name" : "File 1",
-            "hash" : "b68d386047afd22136cb1e7b4d9a961c446f73f2",
-            "trackers" : [
-                {
-                    "hash" : "a94a8fe5ccb19ba61c4c0873d391e987982fbbd3",
-                    "sessionID" : "1"
-                },
-                {
-                    "hash": "c3499c2729730a7f807efb8676a92dcb6f8a3f8f",
-                    "sessionid" : "2"
-                }
-            ]
-        },
-        {
-            "name" : "File 2",
-            "hash" : "efa0f7ef05346073b4848f9836f623acc8594155",
-            "trackers" : [
-                {
-                    "hash": "77de68daecd823babbb58edb1c8e14d7106e83bb",
-                    "sessionid" : "3"
-                },
-                {
-                    "hash": "1b6453892473a467d07372d45eb05abc2031647a",
-                    "sessionid" : "4"
-                }
-            ]
+//     var files = [
+//         {
+//             "name" : "File 1",
+//             "hash" : "b68d386047afd22136cb1e7b4d9a961c446f73f2",
+//             "trackers" : [
+//                 {
+//                     "hash" : "a94a8fe5ccb19ba61c4c0873d391e987982fbbd3",
+//                     "sessionID" : "1"
+//                 },
+//                 {
+//                     "hash": "c3499c2729730a7f807efb8676a92dcb6f8a3f8f",
+//                     "sessionid" : "2"
+//                 }
+//             ]
+//         },
+//         {
+//             "name" : "File 2",
+//             "hash" : "efa0f7ef05346073b4848f9836f623acc8594155",
+//             "trackers" : [
+//                 {
+//                     "hash": "77de68daecd823babbb58edb1c8e14d7106e83bb",
+//                     "sessionid" : "3"
+//                 },
+//                 {
+//                     "hash": "1b6453892473a467d07372d45eb05abc2031647a",
+//                     "sessionid" : "4"
+//                 }
+//             ]
+//         }
+//     ]
+
+    function renderPeerTable() {
+        var peers = JSON.stringify(Client.kBucket.toArray());
+        Client.session.topics.update('client/' + Client.hash + '/peers', peers);
+        var peers = Client.kBucket.toArray();
+        $('#peer-list tbody').empty();
+        var tableRows = "";
+        peers.forEach(function(peer, index) {
+            tableRows +=
+                '<tr>' +
+                '<td>' + index + '</td>' +
+                '<td>' + peer + '</td>' +
+                '<td>' + KBucket.distance(Client.hash, peer) + '</td>' +
+                '</tr>';
+        });
+        $('#peer-list tbody').append(tableRows);
+    }
+
+    function addPeer(hash) {
+        if(hash === Client.hash) {
+            return;
         }
-    ]
+        var preSize = Client.kBucket.count();
+        Client.kBucket.add(hash);
+        var postSize = Client.kBucket.count();
+        if(preSize != postSize) {
+            console.log("Peer added: " + hash);
+            renderPeerTable();
+        } else {
+                console.log("Peer not added (bucket full): " + hash);
+            }
+        }
 
     /**
      * Initializes subscriptions to the topics relevant to this client session (announce, put, and lookup).
@@ -83,45 +115,6 @@ $( document ).ready(function() {
     }
 
     /**
-     * Determines if a peer should be added to the peer list and adds it if it should.
-     *
-     * @param peerHash
-     */
-    function addPeer(topic) {
-        return true;
-    }
-
-//     function addPeer(peerHash) {
-//         // TODO:: Add DHT bin logic.
-//         var shouldAdd = true;
-//         if(shouldAdd){
-//             Client.peers.forEach( function(peer, index) {
-//                 if(peer.hash !== peerHash) {
-//                     Client.session.subscribe('client/' + peerHash);
-//                     Client.peers.push({"hash" : peerHash});
-//                     console.log("Added new peer: " + peerHash);
-//                     // TODO:: Re-render here!
-//                 }
-//             });
-//         } else {
-//             Client.session.remove();
-//         }
-//     }
-
-    /**
-     * Removes a peer from the DHT data structure.
-     *
-     * @param peerHash
-     */
-    function removePeer(peerHash) {
-        Client.peers.forEach( function(peer, index) {
-            if (peer.hash === hash) {
-                Client.peers.splice(index, 1);
-            }
-        });
-    }
-
-    /**
      * Initializes topics for the client session.
      */
     function initTopics(session) {
@@ -136,6 +129,27 @@ $( document ).ready(function() {
         // Remove all topics for client when session disconnects.
         session.topics.removeWithSession('client/' + Client.hash + '/');
     }
+
+    function discoverNodes() {
+        var peers = Client.kBucket.toArray();
+        peers.forEach(function(peer, index) {
+            var subscription = Client.session.subscribe('client/' + peer + '/peers');
+
+            subscription.on('subscribe', function(data, topic) {
+                var hash = topic.slice(7,-6);
+                console.log(data);
+                console.log("Discovering peers of: " + hash);
+                data.forEach(function(peer,index) {
+                    if(peer !== Client.hash) {
+                        addPeer(peer);
+                    }
+                });
+                Client.session.unsubscribe(topic);
+            });
+        });
+    }
+
+    $('#discover-nodes').click(discoverNodes);
 
     /**
      * Use the server to bootstrap into the network. The server will provide a few active peers.
@@ -165,13 +179,13 @@ $( document ).ready(function() {
 
         promise.then(function(peers) {
             peers.forEach(function(peer) {
-                Client.kBucket.add(peer);
-                console.log("Added peer: " + peer);
-                $('#bootstrap').append("<br>" + peer);
+                addPeer(peer);
+                $('#bootstrap .panel-body').append(peer + "<br>" );
             });
+            $('#bootstrap').toggleClass("panel-default panel-success");
+            $('#discover-nodes').toggleClass("btn-default btn-primary disabled");
             buildVisBins();
             console.log(Client.visBins);
-            $('#bootstrap').append("<br><em>Bootstrap complete!</em>");
         });
     }
 
@@ -191,9 +205,9 @@ $( document ).ready(function() {
 
         // Init all the things.
         initVisBins();
+        initTopics(session);
         bootstrap(session);
         initSubscriptions(session);
-        initTopics(session);
     }
 
     /**
