@@ -16,3 +16,7 @@ a {
   stroke-opacity: .4;
   fill: none;
 }
+
+svg {
+  margin: 0 auto;
+}

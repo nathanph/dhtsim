@@ -2,44 +2,33 @@
  * Created by nate on 5/28/15.
  */
 
+var KBucket = require('k-bucket');
+
 /**
  * Client implementation.
  *
  * @namespace
  */
 var Client = {
-    session : null,
-    sessionHash : null,
-    peers : [],
-    files : []
-};
-
-$( document ).ready(function() {
-
     // The session generated after connecting.
+    session : null,
 
-    // The session hash.
+    // The size and number of Kademlia buckets.
+    kSize: 4,
 
-    // Initialize an array of peers in the network.
-    var peers = [
-        {
-            "hash" : "a94a8fe5ccb19ba61c4c0873d391e987982fbbd3",
-            "sessionID" : "1"
-        },
-        {
-            "hash": "c3499c2729730a7f807efb8676a92dcb6f8a3f8f",
-            "sessionid" : "2"
-        },
-        {
-            "hash": "77de68daecd823babbb58edb1c8e14d7106e83bb",
-            "sessionid" : "3"
-        },
-        {
-            "hash": "1b6453892473a467d07372d45eb05abc2031647a",
-            "sessionid" : "4"
-        }
-    ];
+    // A SHA-1 hash representing the client in the network.
+    hash: null,
 
+    // The k-bucket to be used to hold peer information.
+    kBucket : null,
+
+    // The files this client is tracking.
+    files : [],
+
+    // Bins for building the radial graph.
+    visBins : null
+};
+$( document ).ready(function() {
     // Initialize an array of files that you're tracking.
     var files = [
         {
@@ -76,22 +65,19 @@ $( document ).ready(function() {
      * Initializes subscriptions to the topics relevant to this client session (announce, put, and lookup).
      */
     function initSubscriptions(session) {
-        // Session hash.
-        var sessionHash = Sha1.hash(session.sessionID);
-
         // Listen for announcements from clients (a new peer).
-        session.subscribe('client/' + sessionHash + '/announce').on('update', function (data) {
+        session.subscribe('client/' + Client.hash + '/announce').on('update', function (data) {
             $('#announce').append('<br>' + data);
             addPeer(data);
         });
 
         // Listen for put requests (a peer wants you to track a file).
-        session.subscribe('client/' + sessionHash + '/put').on('update', function (data) {
+        session.subscribe('client/' + Client.hash + '/put').on('update', function (data) {
             $('#put').append('<br>' + data);
         });
 
         // Listen for lookup requests (a peer wants to know if you're tracking a file).
-        session.subscribe('client/' + sessionHash + '/lookup').on('update', function (data) {
+        session.subscribe('client/' + Client.hash + '/lookup').on('update', function (data) {
             $('#put').append('<br>' + data);
         });
     }
@@ -102,7 +88,7 @@ $( document ).ready(function() {
      * @param peerHash
      */
     function addPeer(topic) {
-
+        return true;
     }
 
 //     function addPeer(peerHash) {
@@ -155,53 +141,100 @@ $( document ).ready(function() {
      * Use the server to bootstrap into the network. The server will provide a few active peers.
      */
     function bootstrap(session) {
-        // TODO:: Bootstrap with server to discover peers.
-        // Let's cheat for now and use a wildcard within the topic.
         // session.topics.remove('?client//'); // Remove this later, it's just for cleaning up topics.
 
-        var subscription = session.subscribe('?client/.*');
+        var promise = new Promise(function(resolve, reject) {
+            // Let's cheat for now and use a wildcard within the topic.
+            var subscription = session.subscribe('?client/.*');
+            var bootstrapPeers = [];
 
-        // Add the client to our peer list.
-        subscription.on('subscribe', function(data, topic) {
-            hash = topic.substring(7);
-            addPeer(hash);
-        });
+            // Add the client to our peer list.
+            subscription.on('subscribe', function (data, topic) {
+                hash = topic.substring(7);
 
-        // Delete the client from the peer-list if it disconnects.
-        subscription.on('unsubscribe', function(data, topic) {
-            hash = topic.substring(7);
-            Client.peers.forEach( function(peer, index) {
-                if(peer.hash === hash) {
-                    Client.peers.splice(index, 1);
+                if(hash !== Client.hash) {
+                    bootstrapPeers.push(hash);
+                }
+
+                if (bootstrapPeers.length == 3) {
+                    session.unsubscribe('?client/.*');
+                    resolve(bootstrapPeers);
                 }
             });
-            console.log(Client.peers);
-            // TODO:: Re-render here!
+        });
+
+        promise.then(function(peers) {
+            peers.forEach(function(peer) {
+                Client.kBucket.add(peer);
+                console.log("Added peer: " + peer);
+                $('#bootstrap').append("<br>" + peer);
+            });
+            buildVisBins();
+            console.log(Client.visBins);
+            $('#bootstrap').append("<br><em>Bootstrap complete!</em>");
         });
     }
 
     /**
      * Initialize everything after we've connected to the Reappt server.
      */
-    function initConnection(session) {
+    function connectionSuccess(session) {
         Client.session = session;
         Client.hash = Sha1.hash(session.sessionID);
+        Client.kBucket = new KBucket({
+            numberOfNodesPerKBucket : Client.kSize,
+            localNodeId : Client.hash
+        });
 
         $('#session-id').append(" " + session.sessionID);
         $('#client-hash').append(" " + Client.hash);
 
-
         // Init all the things.
+        initVisBins();
+        bootstrap(session);
         initSubscriptions(session);
         initTopics(session);
-        bootstrap(session);
     }
 
+    /**
+     * Connect to the Reappt server.
+     */
     diffusion.connect({
         host: 'disloyalAristotle.eu.reappt.io',
         principal: '',
         credentials: '',
         port: '443'
-    }).then(initConnection, function() {alert("Failed to connect.");});
-});
+    }).then(connectionSuccess, function() {alert("Failed to connect.");});
 
+    function initVisBins() {
+        Client.visBins = [];
+        while(Client.visBins.push([]) < 360);
+    }
+
+    function determineVisBin(hash) {
+        hash = parseInt(hash, 64);
+        console.log("atob hash: " + hash);
+        var range = Math.pow(2,160)/360;
+        for(i=0; i<360; i++) {
+            if(hash>=range*i && hash<range*i+1) {
+                return i;
+            }
+        }
+    }
+
+    function buildVisBins() {
+        var peers = Client.kBucket.toArray();
+        var clientBin = determineVisBin(Client.hash);
+        console.log("Client hash: " + Client.hash);
+        console.log("Client bin: " + clientBin);
+        peers.forEach(function(hash, index) {
+            var bin = determineVisBin(hash);
+            Client.visBins[clientBin].push(bin);
+        });
+    }
+
+    function buildJSON() {
+
+    }
+
+});

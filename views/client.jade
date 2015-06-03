@@ -4,32 +4,36 @@
 extends layout
 
 block content
-    h1 Distributed Hash Table Demo
-    #session-id
-        p
-        strong Session ID:
-    #client-hash
-        p
-        strong Client Hash:
-    hr
-    #announce
-        p
-        strong New Peer Announcement:
-    #peers
-        p
-        strong Peers:
-    #bootstrap
-        p
-        strong Bootstrap:
-    #put
-        p
-        strong Put Request:
-    #lookup
-        p
-        strong Lookup Request:
-    script(src="http://code.jquery.com/jquery-2.1.4.min.js")
+    .container
+        .jumbotron
+            h1 DHT Demo
+            p.
+                Distributed Hash Tables are data structures used to implement many
+                peer-to-peer technologies.
+            p.
+                This demo illustrates the operations a Distributed Hash Table performs.
+                This demo does not use any peer-to-peer communication, instead it uses
+                the Reappt service Bluemix offers.
+        #session-id
+            strong Session ID:
+        #client-hash
+            strong Client Hash:
+        hr
+        #bootstrap
+            strong Bootstrap:
+            br
+            em Waiting for 3 peers to join the network...
+        #announce
+            strong New Peer Announcement:
+        #peers
+            strong Peers:
+        #put
+            strong Put Request:
+        #lookup
+            strong Lookup Request:
     script(src="http://developer.reappt.io/clients/js/diffusion.js")
     script(src="http://d3js.org/d3.v3.min.js")
     script(src="/javascripts/sha1.js")
-    script(src="/javascripts/client.js")
     script(src="/javascripts/edge-bundling.js")
+    script(src="/javascripts/bundle.js")
+//  script(src="/javascripts/client.js")

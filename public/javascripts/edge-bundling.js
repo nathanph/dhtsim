@@ -1,6 +1,3 @@
-/**
- * Created by nate on 5/28/15.
- */
 
 
 var diameter = 960,
@@ -20,7 +17,7 @@ var line = d3.svg.line.radial()
     .radius(function(d) { return d.y; })
     .angle(function(d) { return d.x / 180 * Math.PI; });
 
-var svg = d3.select("body").append("svg")
+var svg = d3.select(".container").append("svg")
     .attr("width", diameter)
     .attr("height", diameter)
     .append("g")
@@ -51,47 +48,47 @@ d3.json("/json/data.json", function(error, classes) {
 
 d3.select(self.frameElement).style("height", diameter + "px");
 
-// Lazily construct the package hierarchy from class names.
+// Lazily construct the package hierarchy from class clientHashs.
 function packageHierarchy(classes) {
     var map = {};
 
-    function find(name, data) {
-        var node = map[name], i;
+    function find(clientHash, data) {
+        var node = map[clientHash], i;
         if (!node) {
-            node = map[name] = data || {name: name, children: []};
-            if (name.length) {
-                node.parent = find(name.substring(0, i = name.lastIndexOf(".")));
+            node = map[clientHash] = data || {clientHash: clientHash, children: []};
+            if (clientHash.length) {
+                node.parent = find(clientHash.substring(0, i = clientHash.lastIndexOf(".")));
                 node.parent.children.push(node);
-                node.key = name.substring(i + 1);
+                node.key = clientHash.substring(i + 1);
             }
         }
         return node;
     }
 
     classes.forEach(function(d) {
-        find(d.name, d);
+        find(d.clientHash, d);
     });
 
     return map[""];
 }
 
-// Return a list of imports for the given array of nodes.
+// Return a list of peers for the given array of nodes.
 function packageImports(nodes) {
     var map = {},
-        imports = [];
+        peers = [];
 
-    // Compute a map from name to node.
+    // Compute a map from clientHash to node.
     nodes.forEach(function(d) {
-        map[d.name] = d;
+        map[d.clientHash] = d;
     });
 
     // For each import, construct a link from the source to target node.
     nodes.forEach(function(d) {
-        if (d.imports) d.imports.forEach(function(i) {
-            imports.push({source: map[d.name], target: map[i]});
+        if (d.peers) d.peers.forEach(function(i) {
+            peers.push({source: map[d.clientHash], target: map[i]});
         });
     });
 
-    return imports;
+    return peers;
 }
 
