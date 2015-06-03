@@ -65,14 +65,15 @@ $( document ).ready(function() {
         var peers = JSON.stringify(Client.kBucket.toArray());
         Client.session.topics.update('client/' + Client.hash + '/peers', peers);
         var peers = Client.kBucket.toArray();
+        console.log(peers);
         $('#peer-list tbody').empty();
         var tableRows = "";
         peers.forEach(function(peer, index) {
             tableRows +=
                 '<tr>' +
                 '<td>' + index + '</td>' +
-                '<td>' + peer + '</td>' +
-                '<td>' + KBucket.distance(Client.hash, peer) + '</td>' +
+                '<td>' + peer.id.toString('base64') + '</td>' +
+                '<td>' + KBucket.distance(Client.hash, peer.id.toString('base64'))  + '</td>' +
                 '</tr>';
         });
         $('#peer-list tbody').append(tableRows);
@@ -83,7 +84,7 @@ $( document ).ready(function() {
             return;
         }
         var preSize = Client.kBucket.count();
-        Client.kBucket.add(hash);
+        Client.kBucket.add({id:hash});
         var postSize = Client.kBucket.count();
         if(preSize != postSize) {
             console.log("Peer added: " + hash);
@@ -112,6 +113,10 @@ $( document ).ready(function() {
         session.subscribe('client/' + Client.hash + '/lookup').on('update', function (data) {
             $('#put').append('<br>' + data);
         });
+
+        session.subscribe('client' + Client.hash + '/peers').on('update', function (data, topic) {
+            console.log(data);
+        });
     }
 
     /**
@@ -135,7 +140,7 @@ $( document ).ready(function() {
         peers.forEach(function(peer, index) {
             var subscription = Client.session.subscribe('client/' + peer + '/peers');
 
-            subscription.on('subscribe', function(data, topic) {
+            subscription.on('update', function(data, topic) {
                 var hash = topic.slice(7,-6);
                 console.log(data);
                 console.log("Discovering peers of: " + hash);
@@ -146,6 +151,7 @@ $( document ).ready(function() {
                 });
                 Client.session.unsubscribe(topic);
             });
+            Client.session.topics.update('client/' + Client.hash + '/peers', 1);
         });
     }
 
@@ -179,13 +185,38 @@ $( document ).ready(function() {
 
         promise.then(function(peers) {
             peers.forEach(function(peer) {
+                console.log(peer);
                 addPeer(peer);
                 $('#bootstrap .panel-body').append(peer + "<br>" );
             });
             $('#bootstrap').toggleClass("panel-default panel-success");
             $('#discover-nodes').toggleClass("btn-default btn-primary disabled");
-            buildVisBins();
-            console.log(Client.visBins);
+//            buildVisBins();
+            findClients();
+        });
+    }
+
+    function findClients() {
+        // Let's cheat for now and use a wildcard within the topic.
+        var subscription = Client.session.subscribe('?client/.*');
+
+        // Add the client to our peer list.
+        subscription.on('subscribe', function (data, topic) {
+            console.log("Sub");
+            hash = topic.substring(7);
+
+            var doesMatch = false;
+            Client.kBucket.toArray().forEach( function(peer, index) {
+                if(hash === peer) {
+                    doesMatch = true;
+                }
+            });
+
+            if(hash !== Client.hash) {
+                if(!doesMatch) {
+                    addPeer(hash);
+                }
+            }
         });
     }
 
@@ -237,14 +268,15 @@ $( document ).ready(function() {
     }
 
     function buildVisBins() {
-        var peers = Client.kBucket.toArray();
-        var clientBin = determineVisBin(Client.hash);
-        console.log("Client hash: " + Client.hash);
-        console.log("Client bin: " + clientBin);
-        peers.forEach(function(hash, index) {
-            var bin = determineVisBin(hash);
-            Client.visBins[clientBin].push(bin);
-        });
+//         var peers = Client.kBucket.toArray();
+//         var clientBin = determineVisBin(Client.hash);
+//         console.log("Client hash: " + Client.hash);
+//         console.log("Client bin: " + clientBin);
+//         peers.forEach(function(hash, index) {
+//             var bin = determineVisBin(hash);
+//             console.log(clientBin);
+//             Client.visBins[clientBin].push(bin);
+//         });
     }
 
     function buildJSON() {
